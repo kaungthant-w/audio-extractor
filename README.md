@@ -1,4 +1,4 @@
-# AI Music Transformer
+# Music Extractor
 
 ![Application Screenshot](assets/screenshot.png)
 ![Application Screenshot](assets/screenshot_2.png)

@@ -119,7 +119,7 @@ if __name__=='__main__':
 		with open(effects_file,'r')as f:effects_opts=json.load(f)
 	mix_options_list=[A.strip()for A in mix_options_str.split(',')if A.strip()];base_dir=os.path.dirname(os.path.abspath(__file__));output_dir=os.path.join(base_dir,'processed');temp_dir=os.path.join(base_dir,'temp',job_id)
 	for d in[output_dir,temp_dir]:os.makedirs(d,exist_ok=_A)
-	final_output=os.path.join(output_dir,f"{job_id}_final.mp3")if FFMPEG_PATH else os.path.join(output_dir,f"{job_id}_final.wav");print(f"=== AI Music Transformer ===",flush=_A);print(f"Job: {job_id} | Inst: {instrument} | Effects: {len(effects_opts)} settings",flush=_A)
+	final_output=os.path.join(output_dir,f"{job_id}_final.mp3")if FFMPEG_PATH else os.path.join(output_dir,f"{job_id}_final.wav");print(f"=== Music Extractor ===",flush=_A);print(f"Job: {job_id} | Inst: {instrument} | Effects: {len(effects_opts)} settings",flush=_A)
 	try:
 		if os.path.splitext(input_file)[1].lower()!=_F:work_file=os.path.join(temp_dir,'input_converted.wav');convert_to_wav(input_file,work_file)
 		else:work_file=input_file
