@@ -1,4 +1,5 @@
-_K='status'
+_L='status'
+_K='segments'
 _J='instrument'
 _I='match_input'
 _H='balanced'
@@ -114,18 +115,39 @@ def dynamic_mix(vocals_path,accompaniment_path,instrument_audio,inst_sr,mix_opti
 		os.replace(F,A)
 	return A
 def generate_srt(audio_path,output_srt_path):
-	B=output_srt_path;print('  Transcribing audio to SRT (Translating to English)...',flush=_A);D=whisper.load_model('base');E=D.transcribe(audio_path,verbose=_B,task='translate')
+	B=output_srt_path;print('  Transcribing audio to SRT (Original Pronunciation)...',flush=_A);D=whisper.load_model('base');E=D.transcribe(audio_path,verbose=_B)
 	def C(seconds):
 		A=str(datetime.timedelta(seconds=seconds))
 		if'.'in A:return A.replace('.',',')[:12]
 		return A+',000'
 	with open(B,'w',encoding='utf-8')as F:
-		for(G,A)in enumerate(E['segments'],start=1):H=C(A['start']);I=C(A['end']);J=A['text'].strip();F.write(f"{G}\n{H} --> {I}\n{J}\n\n")
+		for(G,A)in enumerate(E[_K],start=1):H=C(A['start']);I=C(A['end']);J=A['text'].strip();F.write(f"{G}\n{H} --> {I}\n{J}\n\n")
 	return B
 def generate_srt_with_gemini(audio_path,api_key,output_srt_path):
-	A=output_srt_path;print('  Uploading to Gemini 2.5 Flash for transcription...',flush=_A);genai.configure(api_key=api_key);B=genai.GenerativeModel('gemini-2.5-flash');C=genai.upload_file(path=audio_path);D='\n    Please transcribe this audio into SRT format.\n    - If the language is not English, provide Romanized text (English alphabet) AND the English translation.\n    - Ensure accurate timestamps.\n    - Return ONLY the raw SRT content. No markdown code blocks.\n    ';E=B.generate_content([D,C]);F=E.text.replace('```srt','').replace('```','').strip()
-	with open(A,'w',encoding='utf-8')as G:G.write(F)
-	return A
+	C=output_srt_path;print('  Step 1: Transcribing with Local Whisper for exact timestamps...',flush=_A);F=whisper.load_model('base');G=F.transcribe(audio_path,verbose=_B)
+	def D(seconds):
+		A=str(datetime.timedelta(seconds=seconds))
+		if'.'in A:return A.replace('.',',')[:12]
+		return A+',000'
+	A=''
+	for(H,B)in enumerate(G[_K],start=1):I=D(B['start']);J=D(B['end']);K=B['text'].strip();A+=f"{H}\n{I} --> {J}\n{K}\n\n"
+	print('  Step 2: Sending SRT to Gemini for Romanized transliteration...',flush=_A);genai.configure(api_key=api_key);L=genai.GenerativeModel('gemini-3-pro-preview');M=f'''
+    I will provide an SRT subtitle text. 
+    Your task is to rewrite the subtitles using the EXACT SAME timestamps and SRT format.
+    - DO NOT translate the meaning. Keep the original language words.
+    - Use ONLY the English Alphabet (Romanized characters) for the transcription.
+    - Example: If the original text is Hindi "नमस्ते", write "Namaste".
+    - If it\'s Punjabi "ਤੁਸੀਂ ਕਿਵੇਂ ਹੋ", write "Tussi kiwen ho".
+    - You MUST preserve all SRT sequence numbers and \'-->\' timestamp lines exactly as they are.
+    - Return ONLY the raw SRT text, without any markdown formatting like ```srt or ```.
+
+    Here is the SRT text:
+    {A}
+    '''
+	try:N=L.generate_content(M);E=N.text.replace('```srt','').replace('```','').strip()
+	except Exception as O:print(f"  [Warning] Gemini failed or returned error: {O}. Savings raw Whisper SRT instead.",flush=_A);E=A
+	with open(C,'w',encoding='utf-8')as P:P.write(E)
+	return C
 if __name__=='__main__':
 	input_file=sys.argv[1];instrument=sys.argv[2];job_id=sys.argv[3];mix_options_str=sys.argv[4]if len(sys.argv)>4 else'vocal,instrument';effects_file=sys.argv[5]if len(sys.argv)>5 else _D;effects_opts={}
 	if effects_file and os.path.exists(effects_file):
@@ -153,6 +175,6 @@ if __name__=='__main__':
 			except:mix_val=.5
 			dynamic_mix(vocals_path,accompaniment_path,instrument_audio,inst_sr,mix_options_list,final_output,mix_val);print(f"Output: {final_output}",flush=_A)
 	except Exception as e:
-		import traceback;traceback.print_exc();status_dir=os.path.join(base_dir,_K);os.makedirs(status_dir,exist_ok=_A)
-		with open(os.path.join(status_dir,f"{job_id}.json"),'w')as f:json.dump({_K:'error','message':str(e)},f)
+		import traceback;traceback.print_exc();status_dir=os.path.join(base_dir,_L);os.makedirs(status_dir,exist_ok=_A)
+		with open(os.path.join(status_dir,f"{job_id}.json"),'w')as f:json.dump({_L:'error','message':str(e)},f)
 		sys.exit(1)
