@@ -1,6 +1,7 @@
 # AI Music Transformer
 
 ![Application Screenshot](assets/screenshot.png)
+![Application Screenshot](assets/screensho_2.png)
 
 A web application that separates vocals from music and synthesizes instruments using AI.
 
