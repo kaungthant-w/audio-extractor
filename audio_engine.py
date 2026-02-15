@@ -9,7 +9,7 @@ _D=None
 _C=1.
 _B=False
 _A=True
-import sys,os,json,subprocess,numpy as np,librosa,soundfile as sf,torch,scipy.signal
+import sys,os,json,subprocess,numpy as np,librosa,soundfile as sf,torch,scipy.signal,whisper,datetime,google.generativeai as genai
 FFMPEG_PATH=_D
 try:
 	import imageio_ffmpeg;FFMPEG_PATH=imageio_ffmpeg.get_ffmpeg_exe()
@@ -113,6 +113,19 @@ def dynamic_mix(vocals_path,accompaniment_path,instrument_audio,inst_sr,mix_opti
 		if A.endswith(_G):A=A.rsplit('.',1)[0]+_F
 		os.replace(F,A)
 	return A
+def generate_srt(audio_path,output_srt_path):
+	B=output_srt_path;print('  Transcribing audio to SRT (Translating to English)...',flush=_A);D=whisper.load_model('base');E=D.transcribe(audio_path,verbose=_B,task='translate')
+	def C(seconds):
+		A=str(datetime.timedelta(seconds=seconds))
+		if'.'in A:return A.replace('.',',')[:12]
+		return A+',000'
+	with open(B,'w',encoding='utf-8')as F:
+		for(G,A)in enumerate(E['segments'],start=1):H=C(A['start']);I=C(A['end']);J=A['text'].strip();F.write(f"{G}\n{H} --> {I}\n{J}\n\n")
+	return B
+def generate_srt_with_gemini(audio_path,api_key,output_srt_path):
+	A=output_srt_path;print('  Uploading to Gemini 2.5 Flash for transcription...',flush=_A);genai.configure(api_key=api_key);B=genai.GenerativeModel('gemini-2.5-flash');C=genai.upload_file(path=audio_path);D='\n    Please transcribe this audio into SRT format.\n    - If the language is not English, provide Romanized text (English alphabet) AND the English translation.\n    - Ensure accurate timestamps.\n    - Return ONLY the raw SRT content. No markdown code blocks.\n    ';E=B.generate_content([D,C]);F=E.text.replace('```srt','').replace('```','').strip()
+	with open(A,'w',encoding='utf-8')as G:G.write(F)
+	return A
 if __name__=='__main__':
 	input_file=sys.argv[1];instrument=sys.argv[2];job_id=sys.argv[3];mix_options_str=sys.argv[4]if len(sys.argv)>4 else'vocal,instrument';effects_file=sys.argv[5]if len(sys.argv)>5 else _D;effects_opts={}
 	if effects_file and os.path.exists(effects_file):
@@ -123,6 +136,13 @@ if __name__=='__main__':
 	try:
 		if os.path.splitext(input_file)[1].lower()!=_F:work_file=os.path.join(temp_dir,'input_converted.wav');convert_to_wav(input_file,work_file)
 		else:work_file=input_file
+		if instrument=='srt_export':
+			final_srt_output=os.path.join(output_dir,f"{job_id}_final.srt");engine_type=effects_opts.get('ai_engine','local');api_key=effects_opts.get('api_key','')
+			if engine_type=='gemini'and api_key:
+				try:generate_srt_with_gemini(work_file,api_key,final_srt_output)
+				except Exception as e:print(f"  [Error] Gemini failed: {e}. Falling back to Whisper.",flush=_A);generate_srt(work_file,final_srt_output)
+			else:print(f"  Generating SRT from {work_file} (Local Whisper)...",flush=_A);generate_srt(work_file,final_srt_output)
+			print(f"Output: {final_srt_output}",flush=_A);sys.exit(0)
 		if instrument=='mix_only':y,sr=librosa.load(work_file,sr=22050,mono=_A);sf.write(final_output.replace(_G,_F),y,sr);print('Done (Mix Only).',flush=_A)
 		else:
 			vocals_path,accompaniment_path,other_path=separate_with_demucs(work_file,temp_dir);instrument_audio=_D;inst_sr=22050
